@@ -1,9 +1,8 @@
 [package]
 name = "hc-sr04"
 version = "0.1.2"
-edition = "2021"
+edition = "2024"
 authors = ["Marco Radocchia <marco.radocchia@outlook.com"]
-rust-version = "1.63.0"
 description = "Raspberry Pi Rust driver for the HC-SR04 ultrasonic distance sensor."
 readme = "README.md"
 repository = "https://github.com/marcoradocchia/hc-sr04"
