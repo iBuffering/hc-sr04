@@ -168,6 +168,7 @@ impl HcSr04 {
     ///
     /// Returns `Error(Gpio::Error)` when failing to interface with the GPIO
     /// peripheral.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn measure_distance(&mut self, unit: Unit) -> Result<Option<f32>> {
         self.trig.set_high();
         thread::sleep(Duration::from_micros(10));
