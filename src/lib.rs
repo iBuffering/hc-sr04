@@ -125,14 +125,19 @@ impl HcSr04 {
         (sound_speed, timeout)
     }
 
-    /// Initialize HC-SR04 sensor and register GPIO interrupt on `echo` pin for RisingEdge events
-    /// in order to poll it for bouncing UltraSonic waves detection.
+    /// Initialize HC-SR04 sensor and register GPIO interrupt on `echo` pin for `RisingEdge` events
+    /// in order to poll it for bouncing ultrasonic waves detection.
     ///
     /// # Parameters
     ///
     /// - `trig`: **TRIGGER** output GPIO pin
     /// - `echo`: **ECHO** input GPIO pin
     /// - `temp`: ambient **TEMPERATURE** used for calibration (if `None` defaults to `20.0`)
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Error(Gpio::Error)` when failing to interface with the GPIO
+    /// peripheral.
     pub fn new(trig: u8, echo: u8, temp: Option<f32>) -> Result<Self> {
         let gpio = Gpio::new()?;
 
@@ -161,6 +166,11 @@ impl HcSr04 {
     /// is present within maximum measuring range (*4m*); otherwhise, on `Some` variant instead,
     /// contained value represents distance expressed as the specified `unit`
     /// (**unit of measure**).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error(Gpio::Error)` when failing to interface with the GPIO
+    /// peripheral.
     pub fn measure_distance(&mut self, unit: Unit) -> Result<Option<f32>> {
         self.trig.set_high();
         thread::sleep(Duration::from_micros(10));
