@@ -67,7 +67,7 @@
 pub mod error;
 
 use error::Error;
-use rppal::gpio::{Gpio, InputPin, Level, OutputPin, Trigger};
+use rppal::gpio::{Gpio, InputPin, OutputPin, Trigger};
 use std::{
     thread,
     time::{Duration, Instant},
@@ -137,7 +137,7 @@ impl HcSr04 {
         let gpio = Gpio::new()?;
 
         let mut echo = gpio.get(echo)?.into_input_pulldown();
-        echo.set_interrupt(Trigger::Both)?;
+        echo.set_interrupt(Trigger::Both, None)?;
 
         let (sound_speed, timeout) = Self::calibration_calc(temp.unwrap_or(20.));
 
@@ -166,11 +166,20 @@ impl HcSr04 {
         thread::sleep(Duration::from_micros(10));
         self.trig.set_low();
 
-        // Wait for the `RisingEdge` by ensuring the resulting level is `Level::High`.
-        while self.echo.poll_interrupt(false, None)? != Some(Level::High) {}
+        // Wait for the `RisingEdge` event.
+        while self
+            .echo
+            .poll_interrupt(false, None)?
+            .is_none_or(|event| event.trigger != Trigger::RisingEdge)
+        {}
+
         let instant = Instant::now();
         // Wait for the `FallingEdge` by ensuring the resulting level is `Level::Low`.
-        if self.echo.poll_interrupt(false, Some(self.timeout))? != Some(Level::Low) {
+        if self
+            .echo
+            .poll_interrupt(false, Some(self.timeout))?
+            .is_none_or(|event| event.trigger != Trigger::FallingEdge)
+        {
             // Timeout reached: object out of range (distance > maximum range).
             return Ok(None);
         }
