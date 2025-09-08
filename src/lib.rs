@@ -84,20 +84,17 @@ pub enum Unit {
 }
 
 /// **HC-SR04** ultrasonic sensor on *Raspberry Pi*.
-///
-/// # Fileds
-///
-/// - `trig`: **TRIGGER** output GPIO pin
-/// - `echo`: **ECHO** input GPIO pin
-/// - `temp`: ambient **Temperature** measure calibration
-/// - `sound_speed`: speed of sound given the ambient **Temperature**
-/// - `timeout`: **ECHO** pin polling timeout, considering the maximum measuring range of 4m for
-///     the sensor and the speed of sound given the ambient **Temperature**
 #[derive(Debug)]
 pub struct HcSr04 {
+    /// **TRIGGER** output GPIO pin.
     trig: OutputPin,
+    /// **ECHO** input GPIO pin.
     echo: InputPin,
+    /// speed of sound given the ambient **Temperature**.
     sound_speed: f32,
+    /// **ECHO** pin `FallingEdge` polling timeout, considering
+    /// the maximum measuring range of 4m for the sensor and the speed of sound
+    /// given the ambient **Temperature**
     timeout: Duration,
 }
 

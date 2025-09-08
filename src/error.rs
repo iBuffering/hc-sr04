@@ -30,7 +30,7 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Self::Gpio(error) => write!(f, "GPIO error: {}", error),
+            Self::Gpio(error) => write!(f, "GPIO error: {error}"),
         }
     }
 }
