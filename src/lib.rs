@@ -174,6 +174,10 @@ impl HcSr04 {
     /// peripheral.
     #[allow(clippy::needless_pass_by_value)]
     pub fn measure_distance(&mut self, unit: Unit) -> Result<Option<f32>> {
+        // Poll for interrupts, clearing all cached events, with a timeout of zero.
+        // Effectively, this clears all cached events and immediately returns.
+        self.echo.poll_interrupt(true, Some(Duration::ZERO))?;
+
         self.trig.set_high();
         thread::sleep(Duration::from_micros(10));
         self.trig.set_low();
