@@ -10,13 +10,22 @@ license = "GPL-3.0-only"
 keywords = ["hc-sr04", "ultrasonic", "distance", "sensor", "raspberry-pi"]
 categories = ["hardware-support"]
 
+[features]
+cmdline-utils = ["dep:clap"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[example]]
 name = "distance"
 path = "examples/distance.rs"
 
+[[bin]]
+name = "hc-sr04"
+path = "src/bin.rs"
+required-features = ["cmdline-utils"]
+
 [dependencies]
+clap = { version = "4.5.47", features = ["derive"], optional = true }
 rppal = "0.22.1"
 
 [profile.release]
