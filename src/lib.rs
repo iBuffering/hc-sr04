@@ -172,6 +172,7 @@ impl HcSr04 {
     ///
     /// Returns `Error::Gpio(Gpio::Error)` when failing to interface with the GPIO
     /// peripheral.
+    /// Returns `Error::SensorNotConnected` when failing to communicate with the sensor.
     #[allow(clippy::needless_pass_by_value)]
     pub fn measure_distance(&mut self, unit: Unit) -> Result<Option<f32>> {
         // Poll for interrupts, clearing all cached events, with a timeout of zero.
@@ -183,11 +184,34 @@ impl HcSr04 {
         self.trig.set_low();
 
         // Wait for the `RisingEdge` event.
-        while self
-            .echo
-            .poll_interrupt(false, None)?
-            .is_none_or(|event| event.trigger != Trigger::RisingEdge)
-        {}
+        // If timeout is reached three times in a row, the sensor is not connected.
+        //
+        // NOTE: After 1000 samples collected measuring the time it takes for our HC-SR04
+        // to raise the ECHO signal, calculating the P99 value and adding 100us as
+        // a safety margin, the most suitable timeout value was 570us.
+        // Unfortunately `libc`, and in turn `rppal`, accept a timeout in milliseconds.
+        // This means that a timeout with a lower precision gets interpreted as 0,
+        // thus rendering all calculations useless.
+        // A timeout of 1ms was chosen because it's the smallest available, and
+        // in our tests the interval rarely ever went above 800us.
+        // To be safe, the program tries three times before signalling an issue.
+        //
+        // See "https://github.com/golemparts/rppal/blob/b371a7a548364455e9a54ed526a435592100e0a1/src/gpio/epoll.rs#L98-L102"
+        let mut tries = 0;
+        loop {
+            if let Some(event) = self
+                .echo
+                .poll_interrupt(false, Some(Duration::from_millis(1)))?
+                && event.trigger == Trigger::RisingEdge
+            {
+                break;
+            }
+
+            tries += 1;
+            if tries >= 3 {
+                return Err(Error::SensorNotConnected);
+            }
+        }
 
         let instant = Instant::now();
 

@@ -25,12 +25,17 @@ use std::{
 pub enum Error {
     /// Occurs on Raspberry Pi GPIO error.
     Gpio(gpio::Error),
+    /// Occurs when the time elapsed between the **TRIG** pulse and the `RisingEdge`
+    /// of **ECHO** exceedes the set timeout (the sensor did not respond fast enough,
+    /// which means it is not connected).
+    SensorNotConnected,
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Gpio(error) => write!(f, "GPIO error: {error}"),
+            Self::SensorNotConnected => write!(f, "Sensor not connected"),
         }
     }
 }
