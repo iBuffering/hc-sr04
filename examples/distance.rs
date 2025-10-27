@@ -3,11 +3,11 @@ use std::{thread, time::Duration};
 
 fn run() -> Result<()> {
     // TRIGGER on GPIO Pin 24 & ECHO on GPIO Pin 23.
-    let mut ultrasonic = HcSr04::new(24, 23, None)?;
+    let mut ultrasonic = HcSr04::new(24, 23, None, None)?;
 
     loop {
         match ultrasonic.measure_distance(Unit::Meters)? {
-            Some(dist) => println!("Distance: {:.2}m", dist),
+            Some(dist) => println!("Distance: {dist:.2}m"),
             None => println!("Object out of range"),
         }
 

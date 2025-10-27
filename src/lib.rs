@@ -93,21 +93,21 @@ pub struct HcSr04 {
     /// speed of sound given the ambient **Temperature**.
     sound_speed: f32,
     /// **ECHO** pin `FallingEdge` polling timeout, considering
-    /// the maximum measuring range of 4m for the sensor and the speed of sound
-    /// given the ambient **Temperature**
+    /// the maximum measuring range for the sensor and the speed of sound
+    /// given the ambient **Temperature**.
     timeout: Duration,
+    /// Sensor max range in meters.
+    max_range: f32,
 }
 
 impl HcSr04 {
     /// Perform `sound_speed` and `timeout` calculations required to calibrate the sensor,
-    /// based on **ambient temperature**.
-    fn calibration_calc(temp: f32) -> (f32, Duration) {
+    /// based on **ambient temperature** `temp` and `max_range` distance.
+    fn calibration_calc(max_range: f32, temp: f32) -> (f32, Duration) {
         /// Speed of sound at 0C in m/s.
         const SOUND_SPEED_0C: f32 = 331.3;
         /// Increase speed of sound over temperature factor m/[sC].
         const SOUND_SPEED_INC_OVER_TEMP: f32 = 0.606;
-        /// Maximum measuring range for HC-SR04 sensor in m.
-        const MAX_RANGE: f32 = 4.0;
 
         // Speed of sound, depending on ambient temperature (if `temp` is `None`, default to 20C).
         let sound_speed = SOUND_SPEED_0C + (SOUND_SPEED_INC_OVER_TEMP * temp);
@@ -117,7 +117,7 @@ impl HcSr04 {
         // max range distance. In other words, if the timeout is reached, the measurement was not
         // successfull or the object is located too far away from the sensor in order to be
         // detected.
-        let timeout = Duration::from_secs_f32(MAX_RANGE / sound_speed * 2.);
+        let timeout = Duration::from_secs_f32(max_range / sound_speed * 2.);
 
         (sound_speed, timeout)
     }
@@ -130,43 +130,47 @@ impl HcSr04 {
     /// - `trig`: **TRIGGER** output GPIO pin
     /// - `echo`: **ECHO** input GPIO pin
     /// - `temp`: ambient **TEMPERATURE** used for calibration (if `None` defaults to `20.0`)
+    /// - `max_range`: Max range in meters (if `None` defaults to `4m`)
     ///
     /// # Errors
     ///
     /// Returns an `Error(Gpio::Error)` when failing to interface with the GPIO
     /// peripheral.
-    pub fn new(trig: u8, echo: u8, temp: Option<f32>) -> Result<Self> {
+    pub fn new(trig: u8, echo: u8, temp: Option<f32>, max_range: Option<f32>) -> Result<Self> {
+        let max_range = max_range.unwrap_or(4.0);
+
         let gpio = Gpio::new()?;
 
         let mut echo = gpio.get(echo)?.into_input_pulldown();
         echo.set_interrupt(Trigger::Both, None)?;
 
-        let (sound_speed, timeout) = Self::calibration_calc(temp.unwrap_or(20.));
+        let (sound_speed, timeout) = Self::calibration_calc(max_range, temp.unwrap_or(20.));
 
         Ok(Self {
             trig: gpio.get(trig)?.into_output_low(),
             echo,
             sound_speed,
             timeout,
+            max_range,
         })
     }
 
     /// Calibrate the sensor with the given **ambient temperature** (`temp`) expressed as *Celsius
     /// degrees*.
     pub fn calibrate(&mut self, temp: f32) {
-        (self.sound_speed, self.timeout) = Self::calibration_calc(temp);
+        (self.sound_speed, self.timeout) = Self::calibration_calc(self.max_range, temp);
     }
 
     /// Perform **distance measurement**.
     ///
     /// Returns `Ok` variant if measurement succedes. Inner `Option` value is `None` if no object
-    /// is present within maximum measuring range (*4m*); otherwhise, on `Some` variant instead,
+    /// is present within maximum measuring range; otherwhise, on `Some` variant instead,
     /// contained value represents distance expressed as the specified `unit`
     /// (**unit of measure**).
     ///
     /// # Errors
     ///
-    /// Returns `Error(Gpio::Error)` when failing to interface with the GPIO
+    /// Returns `Error::Gpio(Gpio::Error)` when failing to interface with the GPIO
     /// peripheral.
     #[allow(clippy::needless_pass_by_value)]
     pub fn measure_distance(&mut self, unit: Unit) -> Result<Option<f32>> {
@@ -182,13 +186,14 @@ impl HcSr04 {
         {}
 
         let instant = Instant::now();
-        // Wait for the `FallingEdge` by ensuring the resulting level is `Level::Low`.
+
+        // Wait for the `FallingEdge`.
+        // If timeout is reached, the object is outside of the sensor's range.
         if self
             .echo
             .poll_interrupt(false, Some(self.timeout))?
-            .is_none_or(|event| event.trigger != Trigger::FallingEdge)
+            .is_none()
         {
-            // Timeout reached: object out of range (distance > maximum range).
             return Ok(None);
         }
 

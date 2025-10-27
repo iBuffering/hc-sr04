@@ -12,7 +12,7 @@ const THRESHOLD_DIST: f32 = 1.2;
 
 fn run() -> Result<()> {
     // TRIGGER on GPIO Pin 24 & ECHO on GPIO Pin 23.
-    let mut ultrasonic = HcSr04::new(24, 23, None)?;
+    let mut ultrasonic = HcSr04::new(24, 23, None, None)?;
 
     let below_threshold = |ultrasonic: &mut HcSr04| -> Result<bool> {
         Ok(ultrasonic
@@ -26,9 +26,10 @@ fn run() -> Result<()> {
         // If measured distance is lower than THRESHOLD_DIST, door is open.
         if below_threshold(&mut ultrasonic)? == closed {
             closed = !closed;
-            match closed {
-                true => println!("Door closed!"),
-                false => println!("Door opened!"),
+            if closed {
+                println!("Door closed!");
+            } else {
+                println!("Door opened!");
             }
         }
 
