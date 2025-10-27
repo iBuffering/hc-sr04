@@ -161,12 +161,10 @@ impl HcSr04 {
         (self.sound_speed, self.timeout) = Self::calibration_calc(self.max_range, temp);
     }
 
-    /// Perform **distance measurement**.
+    /// Perform a **distance measurement**.
     ///
-    /// Returns `Ok` variant if measurement succedes. Inner `Option` value is `None` if no object
-    /// is present within maximum measuring range; otherwhise, on `Some` variant instead,
-    /// contained value represents distance expressed as the specified `unit`
-    /// (**unit of measure**).
+    /// Returns the measured distance in the provided `unit` of measurement,
+    /// or `None` if the measurement exceeds the max range set.
     ///
     /// # Errors
     ///
@@ -175,6 +173,34 @@ impl HcSr04 {
     /// Returns `Error::SensorNotConnected` when failing to communicate with the sensor.
     #[allow(clippy::needless_pass_by_value)]
     pub fn measure_distance(&mut self, unit: Unit) -> Result<Option<f32>> {
+        let Some(rtt) = self.measure_rtt()? else {
+            return Ok(None);
+        };
+
+        // Distance in m.
+        let distance = (self.sound_speed * rtt) / 2.;
+
+        Ok(Some(match unit {
+            Unit::Millimeters => distance * 1000.,
+            Unit::Centimeters => distance * 100.,
+            Unit::Decimeters => distance * 10.,
+            Unit::Meters => distance,
+        }))
+    }
+
+    /// Performs a measurement.
+    ///
+    /// Returns the round trip time of the ultrasonic wave in seconds, or `None`
+    /// if the measurement exceeds the max range set.
+    ///
+    /// See also [`measure_distance`](HcSr04::measure_distance).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error::Gpio(Gpio::Error)` when failing to interface with the GPIO
+    /// peripheral.
+    /// Returns `Error::SensorNotConnected` when failing to communicate with the sensor.
+    pub fn measure_rtt(&mut self) -> Result<Option<f32>> {
         // Poll for interrupts, clearing all cached events, with a timeout of zero.
         // Effectively, this clears all cached events and immediately returns.
         self.echo.poll_interrupt(true, Some(Duration::ZERO))?;
@@ -225,14 +251,7 @@ impl HcSr04 {
             return Ok(None);
         }
 
-        // Distance in m.
-        let distance = (self.sound_speed * instant.elapsed().as_secs_f32()) / 2.;
-
-        Ok(Some(match unit {
-            Unit::Millimeters => distance * 1000.,
-            Unit::Centimeters => distance * 100.,
-            Unit::Decimeters => distance * 10.,
-            Unit::Meters => distance,
-        }))
+        // Return elapsed time in seconds.
+        Ok(Some(instant.elapsed().as_secs_f32()))
     }
 }
