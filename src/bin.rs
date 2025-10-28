@@ -22,6 +22,9 @@ enum Commands {
         /// Unit of measure.
         #[arg(short, long, value_enum, default_value_t = Unit::Centimeters)]
         unit: Unit,
+        /// Number of samples.
+        #[arg(short, long)]
+        samples: Option<usize>,
     },
 }
 
@@ -53,9 +56,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             echo,
             max_range,
             unit,
+            samples,
         } => {
             let mut sensor = hc_sr04::HcSr04::new(trig, echo, None, Some(max_range))?;
-            let distance = sensor.measure_distance(unit.to_sensor_unit())?;
+            let distance = if let Some(samples) = samples {
+                sensor.measure_median(samples, unit.to_sensor_unit())?
+            } else {
+                sensor.measure_distance(unit.to_sensor_unit())?
+            };
+
             match distance {
                 Some(dist) => println!("{dist:.2}"),
                 None => println!("None"),

@@ -255,4 +255,83 @@ impl HcSr04 {
         // Return elapsed time in seconds.
         Ok(Some(instant.elapsed().as_secs_f32()))
     }
+
+    /// Perform `num_samples` **distance measurement** and returns the median value.
+    ///
+    /// Note: The number of "in-range" (`Some`) values needs to be at least more than half
+    /// of the number of samples taken, otherwise `None` will be returned.
+    ///
+    /// See also [`measure_distance`](HcSr04::measure_distance).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error::Gpio(Gpio::Error)` when failing to interface with the GPIO
+    /// peripheral.
+    /// Returns `Error::SensorNotConnected` when failing to communicate with the sensor.
+    #[allow(clippy::missing_panics_doc, clippy::needless_pass_by_value)]
+    pub fn measure_median(&mut self, num_samples: usize, unit: Unit) -> Result<Option<f32>> {
+        let mut samples = Vec::new();
+
+        for _ in 0..num_samples {
+            samples.push(self.measure_rtt()?);
+            thread::sleep(Duration::from_millis(30));
+        }
+
+        let Some(median) = HcSr04::get_median(&samples[..]) else {
+            return Ok(None);
+        };
+
+        let distance = (self.sound_speed * median) / 2.;
+
+        Ok(Some(match unit {
+            Unit::Millimeters => distance * 1000.,
+            Unit::Centimeters => distance * 100.,
+            Unit::Decimeters => distance * 10.,
+            Unit::Meters => distance,
+        }))
+    }
+
+    fn get_median(samples: &[Option<f32>]) -> Option<f32> {
+        let initial_len = samples.len();
+        let mut somes = samples.iter().flatten().collect::<Vec<_>>();
+        let somes_len = somes.len();
+        if somes_len <= initial_len / 2 {
+            return None;
+        }
+
+        somes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let mid = somes_len / 2;
+
+        if somes_len % 2 == 0 {
+            Some(f32::midpoint(*somes[mid - 1], *somes[mid]))
+        } else {
+            Some(*somes[mid])
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_median() {
+        let v = [None, None, None];
+        assert_eq!(HcSr04::get_median(&v[..]), None);
+
+        let v = [None, Some(10.0), None];
+        assert_eq!(HcSr04::get_median(&v[..]), None);
+
+        let v = [None, Some(10.0), Some(10.0)];
+        assert_eq!(HcSr04::get_median(&v[..]), Some(10.0));
+
+        let v = [None, Some(10.5), Some(10.0)];
+        assert_eq!(HcSr04::get_median(&v[..]), Some(10.25));
+
+        let v = [None, Some(10.5), Some(10.0), None];
+        assert_eq!(HcSr04::get_median(&v[..]), None);
+
+        let v = [None, Some(10.5), Some(10.0), Some(10.8)];
+        assert_eq!(HcSr04::get_median(&v[..]), Some(10.5));
+    }
 }
