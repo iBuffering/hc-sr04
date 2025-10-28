@@ -26,19 +26,20 @@
 //! [examples](https://github.com/marcoradocchia/hc-sr04/tree/master/examples) folder.
 //!
 //! ## Measure distance
-//! ```rust
+//! ```no_run
 //! use hc_sr04::{HcSr04, Unit};
 //!
 //! // Initialize driver.
 //! let mut ultrasonic = HcSr04::new(
-//!     24,          // TRIGGER -> Gpio pin 24
-//!     23,          // ECHO -> Gpio pin 23
-//!     Some(23_f32) // Ambient temperature (if `None` defaults to 20.0C)
+//!     24,           // TRIGGER -> Gpio pin 24
+//!     23,           // ECHO -> Gpio pin 23
+//!     Some(23_f32), // Ambient temperature (if `None` defaults to 20.0C)
+//!     None,         // Max range (if `None` defaults to 4m)
 //! ).unwrap();
 //!
 //! // Perform distance measurement, specifying measuring unit of return value.
 //! match ultrasonic.measure_distance(Unit::Meters).unwrap() {
-//!     Some(dist) => println!("Distance: {.2}m", dist),
+//!     Some(dist) => println!("Distance: {dist:.2}m"),
 //!     None => println!("Object out of range"),
 //! }
 //! ```
@@ -48,18 +49,18 @@
 //! Distance measurement can be calibrated at runtime using the [`HcSr04::calibrate`] method that
 //! this library exposes, passing the current ambient temperature as `f32`.
 //!
-//! ```rust
+//! ```no_run
 //! use hc_sr04::{HcSr04, Unit};
 //!
 //! // Initialize driver.
-//! let mut ultrasonic = HcSr04::new(24, 23, None).unwrap();
+//! let mut ultrasonic = HcSr04::new(24, 23, None, None).unwrap();
 //!
 //! // Calibrate measurement with ambient temperature.
 //! ultrasonic.calibrate(23_f32);
 //!
 //! // Perform distance measurement.
 //! match ultrasonic.measure_distance(Unit::Centimeters).unwrap() {
-//!     Some(dist) => println!("Distance: {.1}cm", dist),
+//!     Some(dist) => println!("Distance: {dist:.1}cm"),
 //!     None => println!("Object out of range"),
 //! }
 //! ```
